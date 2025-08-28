@@ -65,6 +65,19 @@ user_menu() {
 
 diagnostic_result=""
 
+# Function to check if user has sudo privileges
+check_sudo() {
+  if ! command -v sudo &>/dev/null; then
+    echo "sudo command not found. Please install sudo to run this script."
+    exit 1
+  fi
+
+  if ! sudo -n true 2>/dev/null; then
+    echo "This script requires sudo privileges. Please run the script with a user that has sudo access."
+    exit 1
+  fi
+}
+
 # Simple logging function to log output of commands to a file with timestamps.
 log_output() {
   local logfile
@@ -315,3 +328,8 @@ troubleshoot() {
 
   echo -e "\nFor more detailed troubleshooting, please refer to online resources or forums related to your specific issue."
 }
+
+check_sudo # Ensure the user has sudo privileges before proceeding
+while true; do
+  user_menu
+done
