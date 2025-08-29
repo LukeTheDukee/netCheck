@@ -15,6 +15,8 @@ user_menu() {
   printf "11) Troubleshoot issues based on diagnostics\n"
   printf "q) Quit\n"
 
+  printf "\n"
+
   read -rp "Enter your choice (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11 or Quit\n): " choice
 
   case $choice in # All cases log output to file (Home/.util_log/netcheck.log)
@@ -23,31 +25,31 @@ user_menu() {
     ;;
 
   2)
-    log_output trace_route
+    trace_route
     ;;
   3)
-    log_output dns_lookup
+    dns_lookup
     ;;
   4)
-    log_output list_network_interfaces
+    list_network_interfaces
     ;;
   5)
-    log_output active_connections
+    active_connections
     ;;
   6)
-    log_output firewall_status
+    firewall_status
     ;;
   7)
-    log_output observe_traffic
+    observe_traffic
     ;;
   8)
-    log_output network_config
+    network_config
     ;;
   9)
-    log_output speed_test
+    speed_test
     ;;
   10)
-    log_output port_scan
+    port_scan
     ;;
   11)
     troubleshoot
@@ -66,37 +68,35 @@ user_menu() {
 diagnostic_result=""
 
 # Function to check if user has sudo privileges
-check_sudo() {
+check_sudo() { # Check if sudo is installed
   if ! command -v sudo &>/dev/null; then
     echo "sudo command not found. Please install sudo to run this script."
     exit 1
   fi
 
-  if ! sudo -n true 2>/dev/null; then
-    echo "This script requires sudo privileges. Please run the script with a user that has sudo access."
-    exit 1
+  # Check if the script is running with root privileges
+  if [[ $EUID -ne 0 ]]; then
+    echo "This script is running with root privileges. Be cautious!"
+    return 0
   fi
+
+  echo -e "Some functionalities require sudo privileges. You will be prompted for your password if necessary.\n"
+
 }
 
 # Simple logging function to log output of commands to a file with timestamps.
 log_output() {
-  local logfile
-  local output
-  local command_name
+  local logfile="$HOME/.util_log/netcheck.log"
 
-  if [[ ! -d "$HOME/.util_log" ]]; then
-    mkdir "$HOME/.util_log" # Is directory there?
-  fi
+  # Create the log directory and file if they don't exist
+  mkdir -p "$HOME/.util_log" # Create directory if it doesn't exist
+  touch "$logfile"           # Create log file if it doesn't exist
 
-  if [[ ! -f "$HOME/.util_log/netcheck.log" ]]; then
-    touch "$HOME/.util_log/netcheck.log" # is file there?
-  fi
-
-  logfile="$HOME/.util_log/netcheck.log"
-  output="$("$@" 2>&1)" # Capture both stdout and stderr
-
-  echo "$output" | tee -a "$logfile"               # Send output to both console and log file
-  diagnostic_result+="$command_name: $output"$'\n' # Store output in a global variable for further processing if needed
+  # Execute the command and log output directly
+  {
+    echo "Running command: $*" # Log the command being run
+    "$@" 2>&1                  # Execute the command and capture both stdout and stderr
+  } | tee -a "$logfile"        # Send output to both console and log file
 }
 
 # Fucntion to check if package is installed
@@ -213,7 +213,7 @@ firewall_status() {
   check_package iptables || return 1 # Check if iptables is installed
 
   echo "Active Firewall Rules:"
-  if iptables -L -n -v | while read -r rule; do # Lists all active firewall rules.
+  if sudo iptables -L -n -v | while read -r rule; do # Lists all active firewall rules.
     echo "$(date): $rule"
   done; then
     return 0
@@ -329,7 +329,7 @@ troubleshoot() {
   echo -e "\nFor more detailed troubleshooting, please refer to online resources or forums related to your specific issue."
 }
 
-check_sudo # Ensure the user has sudo privileges before proceeding
+check_sudo
 while true; do
   user_menu
 done
